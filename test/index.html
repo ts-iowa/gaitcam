@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GaitCam tests</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
+    table { border-collapse: collapse; margin: 8px 0 24px; }
+    th, td { border-bottom: 1px solid #ddd; padding: 6px 10px; text-align: left; font-variant-numeric: tabular-nums; }
+    .pass { color: #0a7d0a; font-weight: 600; }
+    .fail { color: #c22; font-weight: 600; }
+    pre { background: #f4f4f4; padding: 8px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>GaitCam analysis tests (synthetic walker)</h1>
+  <div id="out">Running…</div>
+  <script type="module">
+    import { buildSeries } from '../js/series.js';
+    import { analyzeSide } from '../js/gait-side.js';
+    import { analyzeFront } from '../js/gait-front.js';
+    import { sideScenario, frontScenario } from './synth.js';
+
+    const subject = { heightCm: 175 };
+    const settings = { fovDeg: 67, scaleAdj: 100 };
+    const rows = [];
+    const check = (scenario, name, got, want, tol, unit = '') => {
+      const ok = Number.isFinite(got) && Math.abs(got - want) <= tol;
+      rows.push({ scenario, name, got, want, tol, unit, ok });
+    };
+    const fmt = (v) => (Number.isFinite(v) ? (+v.toFixed(3)).toString() : String(v));
+    const details = [];
+
+    const runSide = (label, opts) => {
+      const { raw, expected } = sideScenario(opts);
+      const r = analyzeSide(buildSeries(raw), subject, settings);
+      check(label, 'gait speed', r.speed.mean, expected.speed, 0.05 * expected.speed, 'm/s');
+      check(label, 'step length', r.stepLength.mean, expected.stepLength, 0.05 * expected.stepLength, 'm');
+      check(label, 'step length L', r.stepLength.L.mean, expected.stepLength, 0.06 * expected.stepLength, 'm');
+      check(label, 'step length R', r.stepLength.R.mean, expected.stepLength, 0.06 * expected.stepLength, 'm');
+      check(label, 'step height (heel)', r.stepHeight.heel.mean, expected.stepHeight, 0.25 * expected.stepHeight, 'm');
+      check(label, 'cadence', r.cadence, 60 / (opts.stepTime ?? 0.55), 3, 'steps/min');
+      details.push([label, { passes: r.passes, nSteps: r.steps.length, nSwings: r.swings.length, warnings: r.warnings, heelL: r.stepHeight.heelL, heelR: r.stepHeight.heelR, toe: r.stepHeight.toe }]);
+      return r;
+    };
+    const runFront = (label, opts, side) => {
+      const { raw, expected } = frontScenario(opts);
+      const r = analyzeFront(buildSeries(raw), subject, settings, side);
+      check(label, 'base width', r.baseWidth.mean, expected.baseWidth, 0.02, 'm');
+      check(label, 'steps to turn', r.turn?.steps, expected.turnSteps, 1, 'steps');
+      check(label, 'speed (estimate)', r.speedEst.mean, expected.speed, 0.15 * expected.speed, 'm/s');
+      details.push([label, { turn: r.turn, phases: r.phases, nWidths: r.widths.length, widths: r.widths.map((w) => +w.width.toFixed(3)), warnings: r.warnings }]);
+      return r;
+    };
+
+    try {
+      const side = runSide('side, normal', {});
+      runSide('side, short slow steps', { stepLen: 0.42, stepTime: 0.62, heelLift: 0.1, seed: 5 });
+      runSide('side, 60 fps', { fps: 60, seed: 9 });
+      runFront('front, 4-step turn', {}, side);
+      runFront('front, 7-step turn, wide base', { turnSteps: 7, width: 0.2, seed: 11 }, null);
+      runFront('front, 2-step turn, narrow base', { turnSteps: 2, width: 0.06, xOff: -0.4, seed: 13 }, null);
+    } catch (err) {
+      details.push(['ERROR', String(err.stack || err)]);
+    }
+
+    const passed = rows.filter((r) => r.ok).length;
+    document.getElementById('out').innerHTML = `
+      <p><strong>${passed} / ${rows.length} checks passed</strong></p>
+      <table><thead><tr><th>Scenario</th><th>Parameter</th><th>Measured</th><th>Expected</th><th>Tolerance</th><th></th></tr></thead>
+      <tbody>${rows.map((r) => `<tr><td>${r.scenario}</td><td>${r.name}</td><td>${fmt(r.got)} ${r.unit}</td><td>${fmt(r.want)}</td><td>±${fmt(r.tol)}</td><td class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'pass' : 'FAIL'}</td></tr>`).join('')}</tbody></table>
+      <h2>Details</h2>
+      ${details.map(([k, v]) => `<h3>${k}</h3><pre>${typeof v === 'string' ? v : JSON.stringify(v, null, 1)}</pre>`).join('')}`;
+    window.testResults = { passed, total: rows.length, rows };
+  </script>
+</body>
+</html>
