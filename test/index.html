@@ -20,7 +20,8 @@
     import { buildSeries } from '../js/series.js';
     import { analyzeSide } from '../js/gait-side.js';
     import { analyzeFront } from '../js/gait-front.js';
-    import { sideScenario, frontScenario } from './synth.js';
+    import { sideScenario, frontScenario, frontMultiScenario } from './synth.js';
+    import { referenceRanges, classify } from '../js/norms.js';
 
     const subject = { heightCm: 175 };
     const settings = { fovDeg: 67, scaleAdj: 100 };
@@ -61,6 +62,21 @@
       runFront('front, 4-step turn', {}, side);
       runFront('front, 7-step turn, wide base', { turnSteps: 7, width: 0.2, seed: 11 }, null);
       runFront('front, 2-step turn, narrow base', { turnSteps: 2, width: 0.06, xOff: -0.4, seed: 13 }, null);
+      {
+        const { raw, expected } = frontMultiScenario({});
+        const r = analyzeFront(buildSeries(raw), subject, settings, null);
+        check('front, 3 repeated turns', 'turns found', r.turns.length, expected.turns.length, 0, 'turns');
+        expected.turns.forEach((n, k) => check('front, 3 repeated turns', `turn ${k + 1} steps`, r.turns[k]?.steps, n, 1, 'steps'));
+        check('front, 3 repeated turns', 'base width', r.baseWidth.mean, expected.baseWidth, 0.02, 'm');
+        details.push(['front, 3 repeated turns', { turns: r.turns.map((t) => ({ start: t.start, end: t.end, steps: t.steps })), nWidths: r.widths.length, warnings: r.warnings }]);
+      }
+      {
+        const ref = referenceRanges({ heightCm: 175, age: 65, sex: 'F' });
+        check('norms', 'speed range low (F 60-69)', ref.speed.lo, 1.04, 0.001, 'm/s');
+        check('norms', 'classify 0.9 m/s = low', classify(0.9, ref.speed) === 'low' ? 1 : 0, 1, 0);
+        check('norms', 'classify 6 turn steps = high', classify(6, ref.turnSteps) === 'high' ? 1 : 0, 1, 0);
+        check('norms', 'classify 10 cm base width = normal', classify(0.10, ref.baseWidth) === 'normal' ? 1 : 0, 1, 0);
+      }
     } catch (err) {
       details.push(['ERROR', String(err.stack || err)]);
     }

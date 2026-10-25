@@ -5,7 +5,7 @@ import { openCamera, closeCamera, startRecording, checkFraming, keepAwake } from
 import { buildSeries } from './series.js';
 import { analyzeSide } from './gait-side.js';
 import { analyzeFront } from './gait-front.js';
-import { renderReport, toCSV, toJSON, drawSkeleton, sideColors, heightText, turnSteps } from './report.js';
+import { renderReport, toCSV, toJSON, drawSkeleton, sideColors, heightText, turnSteps, fmtSteps } from './report.js';
 import { loadSettings, saveSettings, loadHistory, saveSession, deleteSession } from './storage.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -115,7 +115,7 @@ function renderHistory() {
     const btn = document.createElement('button');
     const parts = [];
     if (s.side?.speed?.mean) parts.push(`${s.side.speed.mean.toFixed(2)} m/s`);
-    if (s.front?.turn) parts.push(`${turnSteps(s)} turn steps`);
+    if (s.front?.turns?.length || s.front?.turn) parts.push(`${fmtSteps(turnSteps(s))} steps to turn`);
     btn.innerHTML = `<span><span class="h-main"></span><br><span class="h-sub"></span></span><span class="h-del" role="button" aria-label="Delete">✕</span>`;
     btn.querySelector('.h-main').textContent = s.subject.id || 'Unnamed';
     btn.querySelector('.h-sub').textContent = `${new Date(s.date).toLocaleString()}${parts.length ? ' · ' + parts.join(' · ') : ''}`;
@@ -154,6 +154,9 @@ function fillSubjectForm() {
     $('#height-ft').value = Math.floor(inches / 12);
     $('#height-in').value = (inches - Math.floor(inches / 12) * 12).toFixed(1);
   }
+  if (state.subject?.age) $('#subject-age').value = state.subject.age;
+  const sex = state.subject?.sex ?? '';
+  document.querySelectorAll('input[name="subject-sex"]').forEach((r) => { r.checked = r.value === sex; });
 }
 
 $('#subject-form').addEventListener('submit', (e) => {
@@ -169,7 +172,21 @@ $('#subject-form').addEventListener('submit', (e) => {
     err.hidden = false;
     return;
   }
-  state.subject = { heightCm: cm, id: $('#subject-id').value.trim(), notes: $('#subject-notes').value.trim() };
+  const ageRaw = $('#subject-age').value.trim();
+  const age = Number(ageRaw);
+  if (ageRaw && !(age >= 18 && age <= 110)) {
+    const err = $('#subject-error');
+    err.textContent = 'Reference ranges are for adults: enter an age from 18 to 110, or leave it blank.';
+    err.hidden = false;
+    return;
+  }
+  state.subject = {
+    heightCm: cm,
+    age: ageRaw ? Math.round(age) : null,
+    sex: document.querySelector('input[name="subject-sex"]:checked')?.value || '',
+    id: $('#subject-id').value.trim(),
+    notes: $('#subject-notes').value.trim(),
+  };
   go('tests');
 });
 
@@ -251,8 +268,8 @@ async function startCamera() {
   const pill = $('#framing-pill');
   $('#camera-guide').className = `camera-guide ${test}`;
   $('#camera-hint').textContent = test === 'side'
-    ? 'Hold the phone sideways (landscape). Walkway runs across the view.'
-    : 'Hold the phone upright. Walkway runs straight away from the camera.';
+    ? 'Landscape, phone still. Walk across, turn out of view, walk back: 3–4 passes.'
+    : 'Upright, phone still. Walk to the marker, turn, walk back. Repeat for 2–3 turns.';
   $('#btn-rec').classList.remove('recording');
   $('#rec-timer').hidden = true;
   pill.hidden = false;
@@ -413,7 +430,7 @@ async function runAnalysis() {
     settings: { fovDeg: state.settings.fovDeg, scaleAdj: state.settings.scaleAdj, model: state.settings.model, mirrored: state.settings.mirrored },
     side: results.side || null,
     front: results.front || null,
-    turnOverride: null,
+    turnOverrides: {},
   };
   state.runtime = runtime;
   if (!saveSession(state.session)) toast('Could not save to history (browser storage is full or disabled).');
@@ -430,9 +447,14 @@ function showResults() {
   if (!state.session) { goHome(); return; }
   renderReport($('#report'), state.session, state.settings, {
     runtime: state.runtime,
-    onAdjustTurn: (n) => {
-      state.session.turnOverride = n === state.session.front?.turn?.steps ? null : n;
-      saveSession(state.session);
+    onAdjustTurn: (k, n, detected) => {
+      const s = state.session;
+      // migrate the single-turn override used by older saved sessions
+      s.turnOverrides ??= s.turnOverride != null ? { 0: s.turnOverride } : {};
+      delete s.turnOverride;
+      if (n === detected) delete s.turnOverrides[k];
+      else s.turnOverrides[k] = n;
+      saveSession(s);
       showResults();
     },
   });

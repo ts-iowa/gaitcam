@@ -66,12 +66,14 @@ export function analyzeFront(S, subject, settings = {}, sideResult = null) {
   const phases = runs(N, (i) => (isNum(vz[i]) ? (vz[i] > 0.25 ? 1 : vz[i] < -0.25 ? -1 : 0) : 0), minRun)
     .map((r) => ({ ...r, dir: r.key > 0 ? 'away' : 'toward' }));
 
-  let turn = null;
-  // Usually away → turn → toward; toward → turn → away is handled too.
-  for (let k = 0; k < phases.length - 1 && !turn; k++) {
+  // Every change of walking direction is a turn (away → toward at the far
+  // marker, toward → away at the start line), so repeated trials in one
+  // recording are each measured.
+  const turns = [];
+  for (let k = 0; k < phases.length - 1; k++) {
     const first = phases[k];
-    const second = phases.slice(k + 1).find((p) => p.dir !== first.dir);
-    if (!second) continue;
+    const second = phases[k + 1];
+    if (second.dir === first.dir) continue;
     const sgn = first.dir === 'away' ? 1 : -1;
     const lo = Math.max(0, first.end - Math.round(fs)), hi = Math.min(N - 1, second.start + Math.round(fs));
     let iMax = lo;
@@ -91,16 +93,16 @@ export function analyzeFront(S, subject, settings = {}, sideResult = null) {
       const v = sw(i);
       if (isNum(v)) swMin = Math.min(swMin, v);
     }
-    // Two "landings" within 0.12 s are one step seen twice (left/right
+    // Two "landings" within 0.2 s are one step seen twice (left/right
     // labels can swap while the feet overlap during a turn in place).
     const turnContacts = [];
     for (const c of contacts) {
-      if (c.i < i1 || c.i > i2) continue;
+      if (c.i < i1 || c.i >= i2) continue;
       const prev = turnContacts[turnContacts.length - 1];
-      if (prev && c.t - prev.t < 0.12) continue;
+      if (prev && c.t - prev.t < 0.2) continue;
       turnContacts.push(c);
     }
-    turn = {
+    turns.push({
       start: S.t[i1],
       end: S.t[i2],
       time: (i2 - i1) / fs,
@@ -108,8 +110,10 @@ export function analyzeFront(S, subject, settings = {}, sideResult = null) {
       contacts: turnContacts.map(({ side, t }) => ({ side, t })),
       distance: Zs[iMax],
       confident: swMin < 0.65 * swBase,
-    };
+    });
   }
+  const turn = turns[0] || null;
+  const inTurn = (t) => turns.some((tr) => t >= tr.start - 0.3 && t <= tr.end + 0.3);
 
   // --- base width ----------------------------------------------------------
   // At each heel contact during straight walking the other foot is still
@@ -117,8 +121,7 @@ export function analyzeFront(S, subject, settings = {}, sideResult = null) {
   // ground coordinates, placing the feet half a step in front of / behind
   // the body. The step is the body's progress since the other foot landed.
   const stepGuess = sideResult?.stepLength?.mean || 0.4 * Hm;
-  const straight = (i) => phases.some((p) => i >= p.start && i <= p.end) &&
-    !(turn && S.t[i] >= turn.start - 0.3 && S.t[i] <= turn.end + 0.3);
+  const straight = (i) => phases.some((p) => i >= p.start && i <= p.end) && !inTurn(S.t[i]);
   const widths = [];
   for (const c of contacts) {
     if (!straight(c.i)) continue;
@@ -158,14 +161,16 @@ export function analyzeFront(S, subject, settings = {}, sideResult = null) {
 
   const warnings = [];
   if (!phases.length) warnings.push('No walking toward or away from the camera was found.');
-  if (!turn) warnings.push('No turn was found. Walk away from the camera, turn around and walk back, keeping the whole body in view.');
-  else if (!turn.confident) warnings.push('The turn was detected from the walking direction only (the side-on body view was not clearly seen). Check the steps-to-turn count on the video.');
+  if (!turns.length) warnings.push('No turn was found. Walk away from the camera, turn around and walk back, keeping the whole body in view.');
+  else if (turns.some((t) => !t.confident)) warnings.push('A turn was detected from the walking direction only (the side-on body view was not clearly seen). Check the steps-to-turn count on the video.');
+  if (turns.length === 1) warnings.push('One turn was measured. For a more reliable steps-to-turn value, repeat the walk and turn 2–3 times in one recording.');
   if (widths.length && widths.length < 4) warnings.push(`Base width is based on only ${widths.length} steps.`);
 
   return {
     view: 'front',
     baseWidth: summary(widths.map((w) => w.width)),
     widths,
+    turns,
     turn,
     speedEst: { mean: speedEst, n: phaseStats.length },
     cadence,

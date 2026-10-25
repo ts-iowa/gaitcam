@@ -2,6 +2,7 @@
 // CSV / JSON export.
 
 import { isNum } from './signal.js';
+import { referenceRanges, classify, SOURCES } from './norms.js';
 
 // ---------- formatting ----------
 
@@ -37,8 +38,76 @@ export function heightText(cm, units) {
   return `${ft} ft ${(inches - ft * 12).toFixed(1)} in`;
 }
 
-/** Turn steps after any manual correction. */
-export const turnSteps = (session) => session.turnOverride ?? session.front?.turn?.steps;
+/** Turns with manual corrections applied. Older sessions stored a single turn. */
+export function turnList(session) {
+  const front = session.front && !session.front.error ? session.front : null;
+  const turns = front?.turns || (front?.turn ? [front.turn] : []);
+  const ov = session.turnOverrides || (session.turnOverride != null ? { 0: session.turnOverride } : {});
+  return turns.map((t, k) => ({ ...t, detected: t.steps, steps: ov[k] ?? t.steps, adjusted: ov[k] != null && ov[k] !== t.steps }));
+}
+
+/** Steps to turn (mean over all turns, after corrections). */
+export function turnSteps(session) {
+  const list = turnList(session);
+  return list.length ? list.reduce((s, t) => s + t.steps, 0) / list.length : undefined;
+}
+
+export const fmtSteps = (v) => (!isNum(v) ? '–' : Number.isInteger(v) ? String(v) : v.toFixed(1));
+
+const FLAG = {
+  normal: { icon: '✓', text: 'Within typical range', short: 'Typical' },
+  low: { icon: '▼', text: 'Below typical range', short: 'Below typical' },
+  high: { icon: '▲', text: 'Above typical range', short: 'Above typical' },
+};
+
+function flagChip(status, short = false) {
+  if (!status) return '';
+  const fl = FLAG[status];
+  return `<span class="flag flag-${status === 'normal' ? 'ok' : 'out'}" title="${fl.text}"><span aria-hidden="true">${fl.icon}</span> ${short ? fl.short : fl.text}</span>`;
+}
+
+function rangeText(range, fmt) {
+  if (!range) return '';
+  const lo = fmt(range.lo), hi = fmt(range.hi);
+  return `${lo.v}–${hi.v}${hi.u ? ' ' + hi.u : ''}`;
+}
+
+/**
+ * Every compared parameter: {key, name, value, display, range, status, fmt, note}.
+ * Shared by the metric cards, the comparison table and the CSV export.
+ */
+export function comparisons(session, f) {
+  const side = session.side && !session.side.error ? session.side : null;
+  const front = session.front && !session.front.error ? session.front : null;
+  const ref = referenceRanges(session.subject);
+  const lenFmt = (v) => f.len(v, 0);
+  const steps = (v) => ({ v: fmtSteps(v), u: 'steps' });
+  const ratio = (v) => ({ v: isNum(v) ? v.toFixed(2) : '–', u: '' });
+  const perMin = (v) => ({ v: isNum(v) ? v.toFixed(0) : '–', u: 'steps/min' });
+  const rows = [];
+  const add = (key, name, value, fmt, range, extra = {}) => rows.push({ key, name, value, fmt, range, status: classify(value, range), display: fmt(value), ...extra });
+
+  const speed = side && isNum(side.speed.mean) ? side.speed.mean : front?.speedEst?.mean;
+  const speedEst = !(side && isNum(side.speed.mean));
+  let speedNote = '';
+  if (isNum(speed) && speed < 0.8) speedNote = 'Below 0.8 m/s: typical of limited community walking.';
+  else if (isNum(speed) && speed < 1.0) speedNote = 'Below 1.0 m/s: linked to higher fall risk.';
+  add('speed', 'Gait speed', speed, f.speed, ref.speed, { estimate: speedEst && isNum(speed), note: speedNote });
+
+  const sl = side && isNum(side.stepLength.mean) ? side.stepLength.mean : front?.stepLengthEst;
+  add('stepLength', 'Step length', sl, lenFmt, ref.stepLength, { estimate: !(side && isNum(side.stepLength.mean)) && isNum(sl) });
+  if (side && isNum(side.stepLength.L.mean) && isNum(side.stepLength.R.mean)) {
+    const a = side.stepLength.L.mean, b = side.stepLength.R.mean;
+    const r = Math.max(a, b) / Math.min(a, b);
+    add('stepSymmetry', 'Step length symmetry (L/R)', r, ratio, ref.stepSymmetry, { note: r > ref.stepSymmetry.hi ? `${a > b ? 'Left' : 'Right'} steps are longer.` : '' });
+  }
+  if (side) add('strideLength', 'Stride length', side.strideLength.mean, lenFmt, ref.strideLength);
+  add('stepHeight', 'Step height (peak heel lift)', side?.stepHeight?.heel?.mean, f.len, ref.stepHeight);
+  add('baseWidth', 'Base width', front?.baseWidth?.mean, f.len, ref.baseWidth);
+  add('turnSteps', 'Steps to turn 180°', turnSteps(session), steps, ref.turnSteps);
+  if (side && isNum(side.cadence)) add('cadence', 'Cadence', side.cadence, perMin, ref.cadence);
+  return { rows, ref, byKey: Object.fromEntries(rows.map((r) => [r.key, r])) };
+}
 
 // ---------- report ----------
 
@@ -47,45 +116,55 @@ export function renderReport(root, session, settings, { onAdjustTurn, runtime } 
   const side = session.side && !session.side.error ? session.side : null;
   const front = session.front && !session.front.error ? session.front : null;
   const date = new Date(session.date);
+  const cmp = comparisons(session, f);
+  const C = cmp.byKey;
 
   const cards = [];
   // Gait speed
   if (side && isNum(side.speed.mean)) {
-    const s = f.speed(side.speed.mean);
-    cards.push(card('Gait speed', s, `${side.speed.n} pass${side.speed.n === 1 ? '' : 'es'}${pm(f.speed, side.speed)}`));
+    cards.push(card('Gait speed', C.speed, f.speed, `${side.speed.n} pass${side.speed.n === 1 ? '' : 'es'}${pm(f.speed, side.speed)}`));
   } else if (front && isNum(front.speedEst.mean)) {
-    cards.push(card('Gait speed', f.speed(front.speedEst.mean), 'From walk-and-turn test', true));
+    cards.push(card('Gait speed', C.speed, f.speed, 'From walk-and-turn test', true));
   } else cards.push(na('Gait speed', 'Needs the side-walk test'));
 
   // Step length
   if (side && isNum(side.stepLength.mean)) {
     const sl = side.stepLength;
-    cards.push(card('Step length', f.len(sl.mean, 0), `${lr(f.len(sl.L.mean, 0), f.len(sl.R.mean, 0))}<div>${sl.n} steps${pm((v) => f.len(v, 0), sl)}</div>`));
+    const sym = C.stepSymmetry?.status === 'high' ? `<div class="flag flag-out"><span aria-hidden="true">▲</span> L/R differ by ${((C.stepSymmetry.value - 1) * 100).toFixed(0)}%</div>` : '';
+    cards.push(card('Step length', C.stepLength, (v) => f.len(v, 0), `${lr(f.len(sl.L.mean, 0), f.len(sl.R.mean, 0))}<div>${sl.n} steps${pm((v) => f.len(v, 0), sl)}</div>${sym}`));
   } else if (front && isNum(front.stepLengthEst)) {
-    cards.push(card('Step length', f.len(front.stepLengthEst, 0), 'From walk-and-turn test', true));
+    cards.push(card('Step length', C.stepLength, (v) => f.len(v, 0), 'From walk-and-turn test', true));
   } else cards.push(na('Step length', 'Needs the side-walk test'));
 
   // Step height
   if (side && isNum(side.stepHeight.heel.mean)) {
     const sh = side.stepHeight;
-    cards.push(card('Step height', f.len(sh.heel.mean), `Peak heel lift in swing${lr(f.len(sh.heelL.mean), f.len(sh.heelR.mean))}<div>Peak toe lift ${txt(f.len(sh.toe.mean))}</div>`));
+    cards.push(card('Step height', C.stepHeight, f.len, `Peak heel lift in swing${lr(f.len(sh.heelL.mean), f.len(sh.heelR.mean))}<div>Peak toe lift ${txt(f.len(sh.toe.mean))}</div>`));
   } else cards.push(na('Step height', 'Needs the side-walk test'));
 
   // Base width
   if (front && isNum(front.baseWidth.mean)) {
     const bw = front.baseWidth;
-    cards.push(card('Base width', f.len(bw.mean), `${bw.n} steps${pm(f.len, bw)}`));
+    cards.push(card('Base width', C.baseWidth, f.len, `${bw.n} steps${pm(f.len, bw)}`));
   } else cards.push(na('Base width', 'Needs the walk-and-turn test'));
 
-  // Steps to turn
-  if (front?.turn) {
-    const n = turnSteps(session);
-    const adjusted = session.turnOverride != null && session.turnOverride !== front.turn.steps;
+  // Steps to turn (one row per turn, each correctable)
+  const turns = turnList(session);
+  if (turns.length) {
+    const c = C.turnSteps;
+    const meanTime = turns.reduce((s, t) => s + t.time, 0) / turns.length;
+    const turnRows = turns.map((t, k) => `<div class="turn-row">
+        <span>Turn ${k + 1}: <strong>${t.steps}</strong> steps · ${t.time.toFixed(1)} s${t.adjusted ? ` <span class="muted">(detected ${t.detected})</span>` : ''}</span>
+        <span class="adjust no-print"><button class="btn" data-turn="${k}" data-adj="-1" aria-label="Turn ${k + 1}: one fewer step">−</button><button class="btn" data-turn="${k}" data-adj="1" aria-label="Turn ${k + 1}: one more step">+</button></span>
+      </div>`).join('');
     cards.push(`<div class="metric wide">
       <span class="metric-label">Steps to turn 180°</span>
-      <span class="metric-value">${n}<small>steps</small></span>
-      <span class="metric-sub">Turn time ${front.turn.time.toFixed(1)} s${adjusted ? ` · adjusted (detected ${front.turn.steps})` : ''}</span>
-      <div class="adjust no-print"><button class="btn" data-adj="-1" aria-label="One fewer step">−</button><button class="btn" data-adj="1" aria-label="One more step">+</button><span class="muted small">correct after checking the video</span></div>
+      <span class="metric-value">${c.display.v}<small>steps${turns.length > 1 ? ` (mean of ${turns.length} turns)` : ''}</small></span>
+      ${flagChip(c.status, true)}
+      <span class="metric-ref">Typical: ≤ ${c.range.hi} steps</span>
+      <span class="metric-sub">Mean turn time ${meanTime.toFixed(1)} s</span>
+      <div class="turn-list">${turnRows}</div>
+      <span class="muted small no-print">Use − / + to correct a count after checking the review video.</span>
     </div>`);
   } else cards.push(na('Steps to turn 180°', front ? 'No turn found in the video' : 'Needs the walk-and-turn test'));
 
@@ -93,33 +172,49 @@ export function renderReport(root, session, settings, { onAdjustTurn, runtime } 
   for (const [name, r] of [['Side walk', session.side], ['Walk and turn', session.front]]) {
     if (r?.error) warnings.unshift(`${name}: ${r.error}`);
   }
+  const outCount = cmp.rows.filter((r) => r.status === 'low' || r.status === 'high').length;
+  const measured = cmp.rows.filter((r) => r.status).length;
+  const subj = session.subject;
+  const who = [`Height ${heightText(subj.heightCm, settings.units)}`];
+  if (subj.age) who.push(`age ${subj.age}`);
+  if (subj.sex) who.push(subj.sex === 'F' ? 'female' : 'male');
 
   root.innerHTML = `
     <div class="report-head">
-      <h2>Gait assessment${session.subject.id ? ` · ${esc(session.subject.id)}` : ''}</h2>
-      <p class="muted small">${esc(date.toLocaleString())} · Height ${esc(heightText(session.subject.heightCm, settings.units))}${session.subject.notes ? ` · ${esc(session.subject.notes)}` : ''}</p>
+      <h2>Gait assessment${subj.id ? ` · ${esc(subj.id)}` : ''}</h2>
+      <p class="muted small">${esc(date.toLocaleString())} · ${esc(who.join(', '))}${subj.notes ? ` · ${esc(subj.notes)}` : ''}</p>
     </div>
+    ${measured ? `<div class="summary-banner ${outCount ? 'out' : 'ok'}">
+      <span class="summary-icon" aria-hidden="true">${outCount ? '▲' : '✓'}</span>
+      <span>${outCount ? `<strong>${outCount} of ${measured}</strong> measured values ${outCount === 1 ? 'is' : 'are'} outside the typical range for healthy adults.` : `All <strong>${measured}</strong> measured values are within the typical range for healthy adults.`}
+      <a href="#ref-table">See comparison</a></span>
+    </div>` : ''}
     <div class="metrics">${cards.join('')}</div>
     ${warnings.length ? `<div class="card notes"><h3>Check these</h3><ul>${warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}
+    ${refSection(cmp, f, session)}
     ${runtime && (runtime.side || runtime.front) ? reviewSection(runtime) : ''}
     ${side ? sideSection(side, f) : ''}
     ${front ? frontSection(front, f, session) : ''}
     ${moreSection(side, front, f)}
-    <p class="muted small">Distances are scaled from the entered body height and are estimates. Values marked "estimate" use an assumed camera lens.</p>
+    <p class="muted small">Distances are scaled from the entered body height and are estimates. Values marked "estimate" use an assumed camera lens. Typical ranges describe healthy adults and are not a diagnosis.</p>
   `;
 
   root.querySelectorAll('[data-adj]').forEach((b) => b.addEventListener('click', () => {
-    const next = Math.max(0, turnSteps(session) + Number(b.dataset.adj));
-    onAdjustTurn?.(next);
+    const k = Number(b.dataset.turn);
+    const t = turns[k];
+    onAdjustTurn?.(k, Math.max(0, t.steps + Number(b.dataset.adj)), t.detected);
   }));
   if (runtime) wireReview(root, runtime, session);
 }
 
-function card(label, val, sub, estimate = false) {
-  return `<div class="metric">
+function card(label, c, fmt, sub, estimate = false) {
+  return `<div class="metric${c.status && c.status !== 'normal' ? ' metric-out' : ''}">
     <span class="metric-label">${label}${estimate ? ' <span class="est">estimate</span>' : ''}</span>
-    <span class="metric-value">${val.v}<small>${val.u}</small></span>
+    <span class="metric-value">${c.display.v}<small>${c.display.u}</small></span>
+    ${flagChip(c.status, true)}
+    ${c.range ? `<span class="metric-ref">Typical: ${rangeText(c.range, fmt)}</span>` : ''}
     <span class="metric-sub">${sub}</span>
+    ${c.note ? `<span class="metric-sub">${c.note}</span>` : ''}
   </div>`;
 }
 function na(label, msg) {
@@ -127,6 +222,30 @@ function na(label, msg) {
 }
 function lr(l, r) {
   return `<div class="lr"><span class="l">L ${txt(l)}</span><span class="r">R ${txt(r)}</span></div>`;
+}
+
+function refSection(cmp, f, session) {
+  const rows = cmp.rows.filter((r) => r.status);
+  if (!rows.length) return '';
+  const used = [...new Set(rows.map((r) => r.range.source))];
+  if (rows.some((r) => r.key === 'speed')) used.splice(1, 0, 'speedRisk');
+  const typical = (r) => (r.key === 'turnSteps' ? '≤ 4 steps' : rangeText(r.range, r.fmt));
+  return `<div class="card" id="ref-table">
+    <h3>Compared with typical values</h3>
+    <div class="table-wrap"><table class="data ref-table">
+      <thead><tr><th>Parameter</th><th class="num">Result</th><th class="num">Typical range</th></tr></thead>
+      <tbody>${rows.map((r) => `<tr class="${r.status === 'normal' ? '' : 'row-out'}">
+        <th>${r.name}${r.estimate ? ' <span class="est">estimate</span>' : ''}${r.note ? `<div class="muted small">${r.note}</div>` : ''}</th>
+        <td class="num"><span class="ref-val">${r.display.v}${r.display.u ? ' ' + r.display.u : ''}</span>${flagChip(r.status, true)}</td>
+        <td class="num"><span class="nowrap">${typical(r)}${r.range.approx ? '*' : ''}</span><div class="muted small">${esc(r.range.label)}</div></td>
+        </tr>`).join('')}</tbody>
+    </table></div>
+    ${session.subject.age ? '' : '<p class="small muted">Enter age (and sex) when starting an assessment to get age-specific gait speed and step length ranges.</p>'}
+    <details class="howto"><summary>About these reference ranges</summary>
+      <ul class="small">${used.map((k) => `<li>${SOURCES[k]}</li>`).join('')}</ul>
+      <p class="small muted">* Approximate: based on limited published data for this measurement method. Typical ranges describe healthy adults walking at a comfortable speed; values outside them are a prompt to look closer, not a diagnosis.</p>
+    </details>
+  </div>`;
 }
 
 // ---------- sections ----------
@@ -174,7 +293,8 @@ function moreSection(side, front, f) {
   }
   if (front) {
     if (isNum(front.cadence)) rows.push(['Cadence (walk and turn)', `${front.cadence.toFixed(0)} steps/min`]);
-    if (front.turn) rows.push(['Turn distance from camera', txt(f.dist(front.turn.distance))]);
+    const turns = front.turns || (front.turn ? [front.turn] : []);
+    if (turns.length) rows.push([`Turn distance${turns.length > 1 ? 's' : ''} from camera`, turns.map((t) => txt(f.dist(t.distance))).join(', ')]);
     rows.push(['Walk-and-turn video', `${front.quality.fps.toFixed(0)} fps · person found in ${(front.quality.detected * 100).toFixed(0)}% of frames`]);
   }
   if (!rows.length) return '';
@@ -213,11 +333,10 @@ function turnChart(front, f, session) {
   const ticks = niceTicks(0, max, 4);
   const path = tr.map((p, i) => `${i ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(dists[i]).toFixed(1)}`).join('');
   const rowL = H - pb + 18, rowR = H - pb + 32;
-  const turn = front.turn;
   const tticks = niceTicks(0, t1 - t0, 6);
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Distance from camera over time with foot contacts and the turn">
-    ${turn ? `<rect class="turn-band" x="${x(turn.start)}" y="${pt}" width="${Math.max(2, x(turn.end) - x(turn.start))}" height="${H - pt - pb + 40}"/>
-      <text class="label" x="${(x(turn.start) + x(turn.end)) / 2}" y="${H - pb - 6}" text-anchor="middle">turn: ${turnSteps(session)} steps</text>` : ''}
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Distance from camera over time with foot contacts and turns">
+    ${turnList(session).map((turn, k) => `<rect class="turn-band" x="${x(turn.start)}" y="${pt}" width="${Math.max(2, x(turn.end) - x(turn.start))}" height="${H - pt - pb + 40}"/>
+      <text class="label" x="${(x(turn.start) + x(turn.end)) / 2}" y="${H - pb - 6}" text-anchor="middle">${turn.steps} steps</text>`).join('')}
     ${ticks.map((t) => `<line class="grid" x1="${pl}" x2="${W - pr}" y1="${y(t)}" y2="${y(t)}"/><text class="axis-label" x="${pl - 6}" y="${y(t) + 4}" text-anchor="end">${t}</text>`).join('')}
     <text class="axis-label" x="4" y="12">${f.dist(1).u}</text>
     <path class="line" d="${path}"/>
@@ -325,10 +444,12 @@ function wireReview(root, runtime, session) {
         ctx.lineWidth = Math.max(3, canvas.width / 200);
         ctx.beginPath(); ctx.arc(S.X[k][ci], S.Y[k][ci], canvas.width / 40, 0, Math.PI * 2); ctx.stroke();
       }
-      const turn = analysis?.turn;
-      if (turn && t >= turn.start && t <= turn.end) {
+      const turns = current.key === 'front' ? turnList(session) : [];
+      const ti = turns.findIndex((tr) => t >= tr.start && t <= tr.end);
+      if (ti >= 0) {
+        const turn = turns[ti];
         const done = turn.contacts.filter((c) => c.t <= t).length;
-        text = `Turning: step ${done} of ${turn.steps}`;
+        text = `Turn ${ti + 1}: step ${done} of ${turn.detected} detected`;
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
         const fs = Math.round(canvas.width / 22);
         ctx.font = `600 ${fs}px system-ui, sans-serif`;
@@ -373,14 +494,21 @@ export function toCSV(session, settings) {
   }
   if (front) {
     r('summary', 'base_width', front.baseWidth.mean, front.baseWidth.sd, front.baseWidth.n, 'm');
-    if (front.turn) {
-      r('summary', 'steps_to_turn', turnSteps(session), '', '', 'steps', session.turnOverride != null ? `manually adjusted (detected ${front.turn.steps})` : '');
-      r('summary', 'turn_time', front.turn.time, '', '', 's');
+    const turns = turnList(session);
+    if (turns.length) {
+      r('summary', 'steps_to_turn', turnSteps(session), '', turns.length, 'steps', turns.length > 1 ? 'mean of turns' : '');
+      r('summary', 'turn_time', turns.reduce((s, t) => s + t.time, 0) / turns.length, '', turns.length, 's');
+      turns.forEach((t, k) => r('turn', `turn_${k + 1}_steps`, t.steps, '', '', 'steps', `time=${t.time.toFixed(2)}s start=${t.start.toFixed(2)}s${t.adjusted ? ` manually adjusted (detected ${t.detected})` : ''}`));
     }
     if (!side) {
       r('summary', 'gait_speed_estimate', front.speedEst.mean, '', front.speedEst.n, 'm/s', 'walk-and-turn; assumes lens field of view');
       r('summary', 'step_length_estimate', front.stepLengthEst, '', '', 'm', 'walk-and-turn; assumes lens field of view');
     }
+  }
+  const units = { speed: 'm/s', stepLength: 'm', strideLength: 'm', stepHeight: 'm', baseWidth: 'm', turnSteps: 'steps', cadence: 'steps/min', stepSymmetry: 'ratio' };
+  for (const c of comparisons(session, makeFormat('metric')).rows) {
+    if (!c.status) continue;
+    r('reference', c.key, c.value, '', '', units[c.key], `typical ${+c.range.lo.toFixed(3)}-${+c.range.hi.toFixed(3)} (${c.range.label}); ${c.status === 'normal' ? 'within' : c.status === 'low' ? 'below' : 'above'} typical range`);
   }
   side?.steps.forEach((s, i) => r('step', `step_${i + 1}_${s.side}`, s.length, '', '', 'm', `t=${s.t.toFixed(3)}s step_time=${s.time.toFixed(3)}s`));
   side?.swings.forEach((s, i) => r('swing', `swing_${i + 1}_${s.side}`, s.heel, '', '', 'm', `heel lift; toe=${isNum(s.toe) ? s.toe.toFixed(3) : ''}; t=${s.t.toFixed(3)}s${s.near ? '' : '; far side'}`));

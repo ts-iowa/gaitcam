@@ -149,6 +149,39 @@ export function sideScenario({ stepLen = 0.68, stepTime = 0.55, width = 0.1, hee
   return { raw: { frames: [...a.frames, ...gap, ...b.frames], width: 1280, height: 720 }, expected: { speed: stepLen / stepTime, stepLength: stepLen, stepHeight: heelLift } };
 }
 
+/**
+ * Repeated walk-and-turn in one recording: away, turn at the far marker,
+ * back, turn at the start line, away again. `turns` lists the steps per turn.
+ */
+export function frontMultiScenario({ turns = [4, 5, 3], stepLen = 0.62, stepTime = 0.55, width = 0.1, xOff = 0.1, fps = 30, seed = 41 } = {}) {
+  const all = [];
+  let foot = 'L', t = 0, z = 2.2, heading = 0;
+  const legSteps = 7;
+  for (let leg = 0; leg <= turns.length; leg++) {
+    const ff = straightFootfalls({ t0: t, x0: xOff, z0: z, heading, stepLen, stepTime, n: legSteps, width, firstFoot: foot });
+    all.push(...ff);
+    const last = ff[ff.length - 1];
+    foot = last.foot === 'L' ? 'R' : 'L';
+    t = last.t;
+    if (leg === turns.length) break;
+    const dz = heading === 0 ? 1 : -1;
+    const cz = last.z + 0.3 * dz;
+    for (let k = 1; k <= turns[leg]; k++) {
+      const h = heading + (Math.PI * k) / turns[leg];
+      const [lx, lz] = leftOf(h);
+      const s = foot === 'L' ? 1 : -1;
+      t += 0.6;
+      all.push({ t, foot, x: xOff + (lx * s * width) / 2, z: cz + (lz * s * width) / 2, h });
+      foot = foot === 'L' ? 'R' : 'L';
+    }
+    heading = heading === 0 ? Math.PI : 0;
+    z = cz - stepLen * dz;
+    t += stepTime;
+  }
+  const raw = simulate({ footfalls: all, fps, t0: 0, t1: all[all.length - 1].t + 0.5, W: 720, H: 1280, camH: 1.0, seed, flipWhen: (_t, P) => Math.cos(P.h) > 0.3 });
+  return { raw, expected: { baseWidth: width, turns } };
+}
+
 /** Walk-and-turn scenario: away from camera, 180° turn in `turnSteps` steps, back. */
 export function frontScenario({ stepLen = 0.62, stepTime = 0.55, width = 0.1, turnSteps = 4, xOff = 0.25, fps = 30, flipAway = true, seed = 3 } = {}) {
   const away = straightFootfalls({ t0: 0, x0: xOff, z0: 2.0, heading: 0, stepLen, stepTime, n: 8, width });

@@ -160,7 +160,8 @@ export function analyzeSide(S, subject, settings = {}) {
   const stepTimes = steps.map((x) => x.time);
   const warnings = [];
   if (!passes.length) warnings.push('No walking pass was found. The person must cross the camera view with the whole body visible.');
-  if (steps.length && steps.length < 6) warnings.push(`Only ${steps.length} steps were measured. Record 2–3 passes for more reliable results.`);
+  if (passes.length && passes.length < 3) warnings.push(`${passes.length} walking pass${passes.length === 1 ? ' was' : 'es were'} analysed. 3 or more passes (across, back, across…) in one recording give more reliable averages.`);
+  if (steps.length && steps.length < 6) warnings.push(`Only ${steps.length} steps were measured, so averages are less reliable.`);
   if (!passes.some((p) => p.dir > 0) || !passes.some((p) => p.dir < 0)) {
     if (passes.length) warnings.push('Only one walking direction was recorded, so one leg was always on the far side of the camera. Walk across and back for balanced left/right values.');
   }

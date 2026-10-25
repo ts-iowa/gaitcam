@@ -60,6 +60,18 @@
             <span class="unit">in</span>
           </div>
         </label>
+        <label class="field age-row">
+          <span>Age <em>recommended: gives age-specific normal ranges</em></span>
+          <input type="number" inputmode="numeric" id="subject-age" min="18" max="110" step="1" placeholder="years">
+        </label>
+        <fieldset class="field" style="border:0;padding:0;margin:0">
+          <legend style="padding:0;margin-bottom:6px">Sex <em>recommended: gait speed norms differ</em></legend>
+          <div class="seg">
+            <label><input type="radio" name="subject-sex" value="F"><span>Female</span></label>
+            <label><input type="radio" name="subject-sex" value="M"><span>Male</span></label>
+            <label><input type="radio" name="subject-sex" value="" checked><span>Not stated</span></label>
+          </div>
+        </fieldset>
         <label class="field">
           <span>Name or ID <em>optional</em></span>
           <input type="text" id="subject-id" maxlength="60" placeholder="e.g. Patient 014">
@@ -96,12 +108,21 @@
           <text class="illus-text" x="160" y="128" text-anchor="middle">phone (landscape, hip height)</text>
           <text class="illus-text" x="20" y="18">start 2 m outside view</text>
         </svg>
+        <div class="callout">
+          <strong>Do several passes in one recording.</strong> A <b>pass</b> is one walk all the way across the camera view. Each pass adds 4–6 measured steps, so more passes give more reliable averages and balanced left/right values.
+          <ol>
+            <li>Start recording, then walk across the view (pass 1).</li>
+            <li>Keep walking about 2 m past the edge of the view, turn around out of view, and walk back across (pass 2).</li>
+            <li>Turn again out of view and walk across once more (pass 3). Stop recording.</li>
+          </ol>
+          <span class="small">Minimum 1 pass · recommended <strong>3–4 passes</strong> (about 30–40 seconds) · up to 6 is fine.</span>
+        </div>
         <details class="howto">
           <summary>How to set up</summary>
           <ol>
             <li>Turn the phone <strong>sideways (landscape)</strong>. Fix it at about hip height, level, <strong>3–4 m</strong> from the walking line and pointing straight at it.</li>
             <li>Clear a straight walkway of about <strong>8 m</strong>. The person starts and stops about 2 m outside the camera view so they are walking at a steady pace while in view.</li>
-            <li>Walk across the view at a comfortable speed, turn around outside the view, and walk back. Do <strong>2–3 passes</strong>, including both directions.</li>
+            <li>Walk at a comfortable, everyday speed. Turns should happen <strong>outside</strong> the camera view.</li>
             <li>Only one person in view. Good lighting. Fitted clothing helps (loose trousers or skirts hide the legs).</li>
           </ol>
         </details>
@@ -132,13 +153,22 @@
           <text class="illus-text" x="70" y="48">start ~2 m from phone</text>
           <text class="illus-text" x="150" y="122" text-anchor="middle">marker ~6 m from phone · phone upright, hip height</text>
         </svg>
+        <div class="callout">
+          <strong>Optional: repeat for better accuracy.</strong> Every 180° turn in the recording is measured and averaged, and base width uses all the straight walking.
+          <ol>
+            <li>Start recording. Walk from the start line to the far marker and turn around (turn 1).</li>
+            <li>Walk back to the start line (about 2 m from the phone) and turn around again (turn 2).</li>
+            <li>Walk to the far marker, turn (turn 3) and walk back. Stop recording.</li>
+          </ol>
+          <span class="small">Minimum 1 turn · recommended <strong>2–3 turns</strong>. Keep the whole body in view, including at the start line.</span>
+        </div>
         <details class="howto">
           <summary>How to set up</summary>
           <ol>
             <li>Hold the phone <strong>upright (portrait)</strong>. Fix it at about hip height at one end of the walkway, pointing straight along it.</li>
-            <li>Put a marker on the floor about <strong>6 m</strong> from the phone. The person starts about 2 m in front of the phone, facing away.</li>
-            <li>Walk to the marker at a comfortable speed, <strong>turn around (180°)</strong>, and walk back toward the phone. Stop about 1.5 m before it.</li>
-            <li>Keep the whole body, including the feet, in view the entire time.</li>
+            <li>Put a marker on the floor about <strong>6 m</strong> from the phone, and a start line about <strong>2 m</strong> from the phone. The person starts at the start line, facing away.</li>
+            <li>Walk to the marker at a comfortable speed, <strong>turn around (180°)</strong>, and walk back toward the phone. Stop at the start line (or turn again to repeat).</li>
+            <li>Walk straight toward the middle of the camera view. Keep the whole body, including the feet, in view the entire time.</li>
           </ol>
         </details>
         <div class="btn-row">

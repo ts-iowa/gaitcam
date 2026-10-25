@@ -1,77 +1,108 @@
 # GaitCam
 
-A phone web app that measures gait from a single phone camera. It runs entirely in the browser on the phone (iOS Safari, Android Chrome); video is never uploaded.
+**Measure gait with one phone camera, right in the browser.**
 
-**Measured parameters**
+### ▶ Open the app: **[ts-iowa.github.io/gaitcam](https://ts-iowa.github.io/gaitcam/)**
 
-| Parameter | Test | How |
+Works in Safari (iPhone/iPad) and Chrome (Android). No install or account needed. Video is processed **on the phone** and never uploaded.
+
+---
+
+## What it measures
+
+| Parameter | Test | Typical range (healthy adults) |
 |---|---|---|
-| Gait speed | Side walk | Pelvis displacement between the first and last heel strike of each pass ÷ time |
-| Step length (L / R) | Side walk | Distance between consecutive heel-contact positions of opposite feet |
-| Step height (L / R) | Side walk | Peak heel lift above floor level during swing (peak toe lift also reported) |
-| Base width | Walk and turn | Side-to-side distance between the ankles at each foot contact (double support), corrected for depth |
-| Steps to turn 180° | Walk and turn | Foot contacts between deceleration into and acceleration out of the turn; turn time also reported |
+| **Gait speed** | Side walk | Age- and sex-specific (e.g. women 70–79: 0.93–1.38 m/s) |
+| **Step length** (left / right) | Side walk | ≈ 0.37–0.47 × height (shorter with age)* |
+| **Step height** (peak heel lift) | Side walk | ≈ 0.10–0.18 × height* |
+| **Base width** | Walk and turn | 5–14 cm |
+| **Steps to turn 180°** | Walk and turn | ≤ 4 steps |
 
-It also reports cadence, stride length, step time, per-step tables, a step-length chart, a walk-and-turn timeline, and a review video with the tracked skeleton and detected foot contacts. Steps to turn can be corrected by hand after watching the review video.
+The app also reports cadence, stride length, step time, left/right step symmetry and turn time.
+
+Each result is shown next to its typical range and marked **✓ Typical**, **▼ Below typical** or **▲ Above typical**, so values outside the usual range stand out. Ranges marked * are approximate (see [Reference ranges](#reference-ranges)).
+
+## How to use it
+
+1. Open **[ts-iowa.github.io/gaitcam](https://ts-iowa.github.io/gaitcam/)** on the phone. Optionally tap **Share → Add to Home Screen** to install it; it then works offline.
+2. Tap **Start a new assessment** and enter height (required). Age and sex are optional but recommended, because they give age-specific ranges.
+3. Record or upload one or both tests. The phone must be **held still** (tripod, or propped on a shelf or chair) at about hip height.
+4. Tap **Analyse** and keep the screen open while the video is processed (slower than real time).
+5. Review the results, check the skeleton overlay on the video, and export as **CSV**, **JSON** or **Print / PDF**.
+
+### Test 1: Side walk (speed, step length, step height)
+
+- Phone **sideways (landscape)**, 3–4 m from a straight walkway of about 8 m, pointing straight at it.
+- Start walking about 2 m before the camera view so the person is at a steady pace while in view.
+- **Do 3–4 passes in one recording.** A *pass* is one walk all the way across the view. Walk across, keep going about 2 m past the view, turn around **out of view**, and walk back. Each pass adds 4–6 measured steps and balances the left/right values.
+
+### Test 2: Walk and turn (base width, steps to turn)
+
+- Phone **upright (portrait)** at one end of the walkway, pointing along it.
+- Mark a start line about 2 m from the phone and a far marker about 6 m from the phone.
+- Walk from the start line to the marker, **turn around (180°)**, and walk back.
+- **Optional: repeat for 2–3 turns in one recording.** Turn again at the start line and walk back out. Every turn is measured and averaged.
+- Walk toward the middle of the view and keep the whole body, including the feet, in view.
+
+**Tips:** good lighting, only one person in view, fitted clothing (loose trousers or long skirts hide the legs), usual footwear, and no slow-motion video.
+
+## Reference ranges
+
+| Parameter | Typical range used | Source |
+|---|---|---|
+| Gait speed | Mean for age decade and sex, −0.2 to +0.25 m/s | Bohannon & Andrews, *Physiotherapy* 2011 (meta-analysis of normal walking speed) |
+| Gait speed thresholds | < 1.0 m/s: higher fall risk; < 0.8 m/s: limited community walking | Widely used clinical cut-offs |
+| Step length | 0.37–0.47 × height (age < 60), 0.33–0.45 (60–79), 0.28–0.42 (80+) | Approximate, from healthy-adult gait data |
+| Step height | 0.10–0.18 × height (peak heel lift in swing) | Approximate; limited published data for video |
+| Base width | 5–14 cm | ≈ 10 ± 4 cm in community-dwelling adults (*Sci Rep* 2018;8:13193) |
+| Steps to turn 180° | ≤ 4 steps | TURN 180 test: > 4 steps prompts balance / fall-risk assessment |
+| Step length symmetry | Longer ÷ shorter side ≤ 1.10 | Common symmetry threshold |
+| Cadence | 100–125 steps/min | Typical comfortable adult cadence |
+
+Typical ranges describe healthy adults walking at a comfortable speed. A value outside the range is a prompt to look closer, **not a diagnosis**.
+
+## Accuracy and limitations
+
+- Distances are scaled from the entered height using standard body proportions, so expect a few percent error. *Settings → Advanced → Distance calibration* corrects a consistent bias once checked against a measured walkway.
+- If only the walk-and-turn test is done, gait speed and step length are shown as **estimates** (they assume a standard 1× lens).
+- Steps to turn can be off by one for very tight turns on the spot. Check it on the review video and correct it with the − / + buttons.
+- Not yet validated against a clinical reference system (instrumented walkway or motion capture). For research and clinical support only.
 
 ## How it works
 
-1. **Pose tracking:** [MediaPipe Pose Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker) (33 landmarks, including heel and toe) runs on the phone's GPU. The video is played back slowly and every frame is analysed; the playback rate adapts to the phone's speed.
-2. **Cleaning:** landmarks are resampled to a uniform rate, left/right leg label swaps are corrected, and the data is low-pass filtered (6 Hz zero-phase Butterworth).
-3. **Scaling:** pixels are converted to metres using the entered body height. The shoulder→hip→knee→ankle chain is ≈ 0.78 × standing height.
+1. **Pose tracking:** [MediaPipe Pose Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker) finds 33 body landmarks, including heels and toes, on every video frame, using the phone's GPU.
+2. **Cleaning:** landmarks are resampled to a uniform rate, left/right leg label swaps are corrected, and the data is low-pass filtered (6 Hz, zero-phase Butterworth).
+3. **Scaling:** the shoulder→hip→knee→ankle chain is ≈ 0.78 × standing height, which converts pixels to metres.
 4. **Gait events:**
-   - Side view: heel strike and toe-off use the Zeni et al. (2008) method (heel most forward / toe most backward relative to the pelvis).
-   - Front view: a foot is planted when it stops moving in the image. Distance from the camera comes from apparent body size (pinhole model).
+   - Side view: heel strike and toe-off use the Zeni et al. (2008) method, adapted to video.
+   - Front view: a foot is planted when it stops moving in the image. Distance from the camera comes from apparent body size.
 
-## Project layout
+## For developers
+
+No build step: plain HTML, CSS and JavaScript modules.
 
 ```
-index.html            app shell (all screens)
-css/app.css           styles (light + dark)
-js/main.js            screens, navigation, recording/upload, processing flow
-js/pose.js            MediaPipe loading and frame-by-frame video processing
-js/camera.js          in-app camera, recording, live framing check
-js/series.js          resampling, leg-swap fix, filtering, body-size scale
-js/signal.js          filters, peaks, statistics
-js/gait-side.js       side-walk analysis (speed, step length, step height)
-js/gait-front.js      walk-and-turn analysis (base width, steps to turn)
-js/report.js          results page, charts, review overlay, CSV/JSON export
-js/storage.js         settings and history (localStorage)
-sw.js                 offline cache (service worker)
-test/index.html       analysis tests on a synthetic walker (open in a browser)
-dev/serve.ps1         local static server for testing on Windows
+index.html          app shell (all screens)
+css/app.css         styles (light and dark)
+js/main.js          screens, navigation, recording/upload, processing flow
+js/pose.js          MediaPipe loading and frame-by-frame video processing
+js/camera.js        in-app camera, recording, live framing check
+js/series.js        resampling, leg-swap correction, filtering, body scale
+js/signal.js        filters, peak finding, statistics
+js/gait-side.js     side-walk analysis
+js/gait-front.js    walk-and-turn analysis
+js/norms.js         reference ranges and flags
+js/report.js        results page, charts, review overlay, CSV/JSON export
+js/storage.js       settings and history (browser storage only)
+sw.js               offline cache
+test/               analysis tests on a synthetic walker
+dev/serve.ps1       local test server (Windows)
 ```
 
-There is no build step. All files are static.
+- **Run locally:** `powershell -ExecutionPolicy Bypass -File dev/serve.ps1`, then open `http://localhost:8080/`.
+- **Analysis tests:** open [ts-iowa.github.io/gaitcam/test](https://ts-iowa.github.io/gaitcam/test/) (or `/test/` locally).
+- **Deploy:** push to `main`; GitHub Pages republishes the site within about a minute.
 
-## Publish on GitHub Pages
+---
 
-1. Create a GitHub repository and push this folder's contents to it (the `.claude/` and `dev/` folders are optional).
-2. In the repository, open **Settings → Pages**, set **Source** to *Deploy from a branch*, pick `main` and `/ (root)`, and save.
-3. After a minute the app is live at `https://<username>.github.io/<repository>/`. Open that link on the phone.
-4. Optional: in the phone browser, use **Add to Home Screen** to install it like an app (works offline after the first load).
-
-Camera access requires HTTPS, which GitHub Pages provides. The `.nojekyll` file stops GitHub from processing the files.
-
-## Test locally
-
-```bash
-powershell -ExecutionPolicy Bypass -File dev/serve.ps1
-```
-
-Then open `http://localhost:8080/` (app) or `http://localhost:8080/test/` (analysis tests) on this computer. Phones on your network cannot use the camera over plain HTTP, so test on phones through the GitHub Pages URL.
-
-## Recording tips
-
-- Keep the phone **still** (tripod or propped up) at about hip height and level.
-- **Side walk:** phone in landscape, 3–4 m from the walkway; start and stop 2 m outside the view; walk across and back 2–3 times.
-- **Walk and turn:** phone upright at one end of the walkway; start 2 m in front of it, walk to a marker about 6 m away, turn around, and walk back.
-- Whole body in view, one person, good light, fitted clothing.
-- Do not use slow-motion videos (their timing is stretched).
-
-## Limitations
-
-- Distances depend on the entered height and on a fixed body proportion. Expect a few percent error. *Settings → Advanced → Distance calibration* can correct a systematic bias once checked against a measured walkway.
-- Gait speed and step length shown on the walk-and-turn test alone are estimates that assume a standard 1× lens.
-- Steps-to-turn can be off by one for very tight turns on the spot. Check it on the review video and adjust.
-- Not validated against a clinical reference system yet. For research and clinical support only, not diagnosis.
+*For research and clinical support only. Not a medical device and not a diagnosis.*
