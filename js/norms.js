@@ -5,7 +5,7 @@
 import { isNum } from './signal.js';
 
 // Comfortable gait speed (m/s) by decade and sex.
-// Bohannon RW, Andrews AW. Normal walking speed: a descriptive meta-analysis.
+// Bohannon RW, Williams Andrews A. Normal walking speed: a descriptive meta-analysis.
 // Physiotherapy 2011;97:182-189.
 const SPEED = [
   { lo: 20, hi: 29, M: 1.36, F: 1.34 },
@@ -18,7 +18,7 @@ const SPEED = [
 ];
 
 export const SOURCES = {
-  speed: 'Bohannon & Andrews 2011, normal walking speed meta-analysis (age- and sex-specific means; typical range ≈ mean −0.2 to +0.25 m/s).',
+  speed: 'Bohannon & Williams Andrews 2011, normal walking speed meta-analysis (age- and sex-specific means; typical range ≈ mean −0.2 to +0.25 m/s).',
   speedRisk: 'Below 1.0 m/s is linked to higher risk of falls and other adverse outcomes; below 0.8 m/s is typical of limited community walking.',
   stepLength: 'Approximate: healthy adult step length ≈ 0.37–0.47 × height, shorter with age.',
   stepHeight: 'Approximate: peak heel lift in swing ≈ 0.10–0.18 × height in healthy adults at comfortable speed (limited published data for video).',

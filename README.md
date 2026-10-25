@@ -50,7 +50,7 @@ Each result is shown next to its typical range and marked **✓ Typical**, **▼
 
 | Parameter | Typical range used | Source |
 |---|---|---|
-| Gait speed | Mean for age decade and sex, −0.2 to +0.25 m/s | Bohannon & Andrews, *Physiotherapy* 2011 (meta-analysis of normal walking speed) |
+| Gait speed | Mean for age decade and sex, −0.2 to +0.25 m/s | Bohannon & Williams Andrews, *Physiotherapy* 2011 (meta-analysis of normal walking speed) |
 | Gait speed thresholds | < 1.0 m/s: higher fall risk; < 0.8 m/s: limited community walking | Widely used clinical cut-offs |
 | Step length | 0.37–0.47 × height (age < 60), 0.33–0.45 (60–79), 0.28–0.42 (80+) | Approximate, from healthy-adult gait data |
 | Step height | 0.10–0.18 × height (peak heel lift in swing) | Approximate; limited published data for video |
@@ -60,6 +60,8 @@ Each result is shown next to its typical range and marked **✓ Typical**, **▼
 | Cadence | 100–125 steps/min | Typical comfortable adult cadence |
 
 Typical ranges describe healthy adults walking at a comfortable speed. A value outside the range is a prompt to look closer, **not a diagnosis**.
+
+Full citations (with DOI links) are on the app's **About** page: open the app and tap **About GaitCam & clinical references** on the home screen.
 
 ## Accuracy and limitations
 
@@ -91,7 +93,7 @@ js/series.js        resampling, leg-swap correction, filtering, body scale
 js/signal.js        filters, peak finding, statistics
 js/gait-side.js     side-walk analysis
 js/gait-front.js    walk-and-turn analysis
-js/norms.js         reference ranges and flags
+js/norms.js         reference ranges and flags (citations on the About screen in index.html)
 js/report.js        results page, charts, review overlay, CSV/JSON export
 js/storage.js       settings and history (browser storage only)
 sw.js               offline cache

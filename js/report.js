@@ -243,6 +243,7 @@ function refSection(cmp, f, session) {
     ${session.subject.age ? '' : '<p class="small muted">Enter age (and sex) when starting an assessment to get age-specific gait speed and step length ranges.</p>'}
     <details class="howto"><summary>About these reference ranges</summary>
       <ul class="small">${used.map((k) => `<li>${SOURCES[k]}</li>`).join('')}</ul>
+      <button class="btn btn-ghost no-print" data-go="about">Full clinical references</button>
       <p class="small muted">* Approximate: based on limited published data for this measurement method. Typical ranges describe healthy adults walking at a comfortable speed; values outside them are a prompt to look closer, not a diagnosis.</p>
     </details>
   </div>`;

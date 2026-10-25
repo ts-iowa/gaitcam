@@ -2,7 +2,7 @@
 // App files: network first (so updates arrive), cache as fallback.
 // Pose model and MediaPipe runtime (CDN): cache first, they are versioned.
 
-const APP_CACHE = 'gaitcam-app-v2';
+const APP_CACHE = 'gaitcam-app-v3';
 const CDN_CACHE = 'gaitcam-cdn-v1';
 const APP_FILES = [
   './',

@@ -9,7 +9,7 @@ import { renderReport, toCSV, toJSON, drawSkeleton, sideColors, heightText, turn
 import { loadSettings, saveSettings, loadHistory, saveSession, deleteSession } from './storage.js';
 
 const $ = (sel) => document.querySelector(sel);
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 
 const state = {
   settings: loadSettings(),
@@ -74,6 +74,24 @@ function enter(name) {
 }
 
 $('#btn-back').addEventListener('click', () => history.back());
+
+// In-page jump links (#ref-table, #ref-3, …) scroll instead of changing the
+// URL hash, which would otherwise look like a back-navigation to the router.
+document.addEventListener('click', (e) => {
+  const goBtn = e.target.closest('[data-go]');
+  if (goBtn) { go(goBtn.dataset.go); return; }
+  const a = e.target.closest('a[href^="#"]');
+  if (!a) return;
+  e.preventDefault();
+  const target = document.getElementById(a.getAttribute('href').slice(1));
+  if (!target) return;
+  const top = target.getBoundingClientRect().top + window.scrollY - document.querySelector('.topbar').offsetHeight - 8;
+  window.scrollTo({ top, behavior: 'smooth' });
+  target.classList.add('flash');
+  setTimeout(() => target.classList.remove('flash'), 1200);
+});
+
+$('#btn-about').addEventListener('click', () => go('about'));
 
 // ---------------- toast ----------------
 
@@ -500,6 +518,7 @@ $('#btn-settings').addEventListener('click', () => {
   dlg.showModal();
 });
 dlg.addEventListener('close', () => {
+  if (dlg.returnValue === 'about') { if (state.current !== 'about') go('about'); return; }
   if (dlg.returnValue !== 'save') return;
   const prevModel = state.settings.model;
   const num = (v, lo, hi, d) => (Number(v) >= lo && Number(v) <= hi ? Number(v) : d);
@@ -525,4 +544,5 @@ preloadModel();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   navigator.serviceWorker.register('sw.js').catch((err) => console.warn('Service worker not registered', err));
 }
+$('#about-version').textContent = `Version ${APP_VERSION} · MediaPipe Tasks Vision ${MP_VERSION}`;
 window.gaitcam = { state, heightText };

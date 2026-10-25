@@ -41,6 +41,7 @@
         <ul class="history" id="history-list"></ul>
         <p class="muted small" id="history-empty">No saved assessments yet. Results are stored only in this browser.</p>
       </div>
+      <button class="btn btn-ghost about-link" id="btn-about">About GaitCam &amp; clinical references</button>
       <p class="disclaimer small muted">For research and clinical support only. Measurements are estimates from video and are not a medical diagnosis.</p>
     </section>
 
@@ -217,6 +218,66 @@
       </div>
     </section>
 
+    <!-- ABOUT -->
+    <section class="screen about" id="screen-about" data-title="About" hidden>
+      <div class="card">
+        <h2>About GaitCam</h2>
+        <p>GaitCam measures <strong>gait speed, step length, step height, base width and steps to turn</strong> from a phone video, and compares each value with typical ranges for healthy adults.</p>
+        <ul class="about-list">
+          <li><strong>Private by design:</strong> video is analysed on the phone with MediaPipe Pose and is never uploaded. Saved results stay in this browser only.</li>
+          <li><strong>One phone:</strong> a side-walk test (speed, step length, step height) and a walk-and-turn test (base width, steps to turn).</li>
+          <li><strong>Not a diagnosis:</strong> GaitCam is a research and clinical support tool. It is not a medical device and has not yet been validated against an instrumented walkway or motion capture. Values outside a typical range are a prompt to look closer.</li>
+        </ul>
+        <p class="small muted">Source code: <a href="https://github.com/ts-iowa/gaitcam" target="_blank" rel="noopener">github.com/ts-iowa/gaitcam</a> · <span id="about-version"></span></p>
+      </div>
+
+      <div class="card">
+        <h3>How the reference ranges are used</h3>
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Parameter</th><th>Typical range in GaitCam</th><th>Refs</th></tr></thead>
+          <tbody>
+            <tr><th>Gait speed</th><td>Mean for age decade and sex, −0.2 to +0.25 m/s. Notes below 1.0 m/s (higher risk of falls and adverse outcomes) and below 0.8 m/s (limited community walking).</td><td><a href="#ref-1">1</a>–<a href="#ref-5">5</a></td></tr>
+            <tr><th>Step length</th><td>≈ 0.37–0.47 × height under age 60; 0.33–0.45 at 60–79; 0.28–0.42 at 80+ (approximate).</td><td><a href="#ref-6">6</a></td></tr>
+            <tr><th>Step length symmetry</th><td>Longer ÷ shorter side ≤ 1.10.</td><td><a href="#ref-11">11</a></td></tr>
+            <tr><th>Step height</th><td>Peak heel lift in swing ≈ 0.10–0.18 × height (approximate; limited normative data for video).</td><td><a href="#ref-10">10</a></td></tr>
+            <tr><th>Base width</th><td>5–14 cm (community-dwelling adults ≈ 10 ± 4 cm).</td><td><a href="#ref-7">7</a></td></tr>
+            <tr><th>Steps to turn 180°</th><td>≤ 4 steps; more steps is a common trigger for balance and fall-risk assessment.</td><td><a href="#ref-8">8</a>, <a href="#ref-9">9</a></td></tr>
+            <tr><th>Cadence</th><td>≈ 100–125 steps/min at comfortable speed.</td><td><a href="#ref-12">12</a></td></tr>
+          </tbody>
+        </table></div>
+        <p class="small muted">A change in gait speed of about 0.05 m/s is considered small but meaningful, and about 0.1 m/s substantial (ref <a href="#ref-5">5</a>), which is useful when comparing repeat assessments.</p>
+      </div>
+
+      <div class="card">
+        <h3>Clinical references</h3>
+        <h4 class="ref-group">Gait speed</h4>
+        <ol class="refs">
+          <li id="ref-1">Bohannon RW, Williams Andrews A. Normal walking speed: a descriptive meta-analysis. <i>Physiotherapy</i>. 2011;97(3):182–189. <a href="https://doi.org/10.1016/j.physio.2010.12.004" target="_blank" rel="noopener">doi:10.1016/j.physio.2010.12.004</a></li>
+          <li id="ref-2">Studenski S, Perera S, Patel K, et al. Gait speed and survival in older adults. <i>JAMA</i>. 2011;305(1):50–58. <a href="https://doi.org/10.1001/jama.2010.1923" target="_blank" rel="noopener">doi:10.1001/jama.2010.1923</a></li>
+          <li id="ref-3">Perry J, Garrett M, Gronley JK, Mulroy SJ. Classification of walking handicap in the stroke population. <i>Stroke</i>. 1995;26(6):982–989. <a href="https://doi.org/10.1161/01.STR.26.6.982" target="_blank" rel="noopener">doi:10.1161/01.STR.26.6.982</a></li>
+          <li id="ref-4">Fritz S, Lusardi M. White paper: "Walking speed: the sixth vital sign." <i>J Geriatr Phys Ther</i>. 2009;32(2):46–49. <a href="https://doi.org/10.1519/00139143-200932020-00002" target="_blank" rel="noopener">doi:10.1519/00139143-200932020-00002</a></li>
+          <li id="ref-5">Perera S, Mody SH, Woodman RC, Studenski SA. Meaningful change and responsiveness in common physical performance measures in older adults. <i>J Am Geriatr Soc</i>. 2006;54(5):743–749. <a href="https://doi.org/10.1111/j.1532-5415.2006.00701.x" target="_blank" rel="noopener">doi:10.1111/j.1532-5415.2006.00701.x</a></li>
+        </ol>
+        <h4 class="ref-group">Step length, base width, turning, foot clearance, symmetry, cadence</h4>
+        <ol class="refs" start="6">
+          <li id="ref-6">Hollman JH, McDade EM, Petersen RC. Normative spatiotemporal gait parameters in older adults. <i>Gait Posture</i>. 2011;34(1):111–118. <a href="https://doi.org/10.1016/j.gaitpost.2011.03.024" target="_blank" rel="noopener">doi:10.1016/j.gaitpost.2011.03.024</a></li>
+          <li id="ref-7">Herrero-Larrea A, Miñarro A, Narvaiza L, et al. Normal limits of home measured spatial gait parameters of the elderly population and their association with health variables. <i>Sci Rep</i>. 2018;8:13193. <a href="https://doi.org/10.1038/s41598-018-31507-1" target="_blank" rel="noopener">doi:10.1038/s41598-018-31507-1</a></li>
+          <li id="ref-8">Gamerman Y, Hoshen M, Herman Cohen A, Alter Z, Hadad L, Melzer I. Validity and inter-observer reliability of the TURN 180 test to identify older adults who reported falls. <i>Isr Med Assoc J</i>. 2019;21(4):269–274. <a href="https://www.ima.org.il/MedicineIMAJ/Article.aspx?aId=4478" target="_blank" rel="noopener">IMAJ article</a></li>
+          <li id="ref-9">Thigpen MT, Light KE, Creel GL, Flynn SM. Turning difficulty characteristics of adults aged 65 years or older. <i>Phys Ther</i>. 2000;80(12):1174–1187. <a href="https://doi.org/10.1093/ptj/80.12.1174" target="_blank" rel="noopener">doi:10.1093/ptj/80.12.1174</a></li>
+          <li id="ref-10">Mariani B, Rochat S, Büla CJ, Aminian K. Heel and toe clearance estimation for gait analysis using wireless inertial sensors. <i>IEEE Trans Biomed Eng</i>. 2012;59(11):3162–3168. <a href="https://doi.org/10.1109/TBME.2012.2216263" target="_blank" rel="noopener">doi:10.1109/TBME.2012.2216263</a></li>
+          <li id="ref-11">Patterson KK, Gage WH, Brooks D, Black SE, McIlroy WE. Evaluation of gait symmetry after stroke: a comparison of current methods and recommendations for standardization. <i>Gait Posture</i>. 2010;31(2):241–246. <a href="https://doi.org/10.1016/j.gaitpost.2009.10.014" target="_blank" rel="noopener">doi:10.1016/j.gaitpost.2009.10.014</a></li>
+          <li id="ref-12">Tudor-Locke C, Han H, Aguiar EJ, et al. How fast is fast enough? Walking cadence (steps/min) as a practical estimate of intensity in adults: a narrative review. <i>Br J Sports Med</i>. 2018;52(12):776–788. <a href="https://doi.org/10.1136/bjsports-2017-097628" target="_blank" rel="noopener">doi:10.1136/bjsports-2017-097628</a></li>
+        </ol>
+        <h4 class="ref-group">Measurement methods</h4>
+        <ol class="refs" start="13">
+          <li id="ref-13">Zeni JA Jr, Richards JG, Higginson JS. Two simple methods for determining gait events during treadmill and overground walking using kinematic data. <i>Gait Posture</i>. 2008;27(4):710–714. <a href="https://doi.org/10.1016/j.gaitpost.2007.07.007" target="_blank" rel="noopener">doi:10.1016/j.gaitpost.2007.07.007</a> <span class="muted">(heel-strike and toe-off detection)</span></li>
+          <li id="ref-14">Stenum J, Rossi C, Roemmich RT. Two-dimensional video-based analysis of human gait using pose estimation. <i>PLoS Comput Biol</i>. 2021;17(4):e1008935. <a href="https://doi.org/10.1371/journal.pcbi.1008935" target="_blank" rel="noopener">doi:10.1371/journal.pcbi.1008935</a> <span class="muted">(validity of 2D video gait analysis)</span></li>
+          <li id="ref-15">Bazarevsky V, Grishchenko I, Raveendran K, Zhu T, Zhang F, Grundmann M. BlazePose: on-device real-time body pose tracking. arXiv:2006.10204. 2020. <a href="https://doi.org/10.48550/arXiv.2006.10204" target="_blank" rel="noopener">doi:10.48550/arXiv.2006.10204</a> <span class="muted">(pose model)</span></li>
+          <li id="ref-16">Winter DA. <i>Biomechanics and Motor Control of Human Movement</i>. 4th ed. Wiley; 2009. <a href="https://doi.org/10.1002/9780470549148" target="_blank" rel="noopener">doi:10.1002/9780470549148</a> <span class="muted">(body segment proportions used for scaling)</span></li>
+        </ol>
+      </div>
+    </section>
+
     <!-- RESULTS -->
     <section class="screen" id="screen-results" data-title="Results" hidden>
       <div id="report"></div>
@@ -269,6 +330,7 @@
         <button class="btn btn-primary" value="save" id="btn-settings-save">Save</button>
       </div>
       <p class="muted small" id="about-line"></p>
+      <button class="btn btn-ghost" value="about" id="btn-settings-about">About &amp; clinical references</button>
     </form>
   </dialog>
 
